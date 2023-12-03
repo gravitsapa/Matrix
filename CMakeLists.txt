@@ -3,16 +3,29 @@ project(IDZ)
 
 set(CMAKE_CXX_STANDARD 20)
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/input3.txt
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/input2.txt
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/input1.txt
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/input4.txt
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/output3.txt
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/output1.txt
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/output4.txt
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/input2.txt
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(IDZ rational.h rational.cpp matrix.h matrix.cpp main.cpp)

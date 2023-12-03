@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <vector>
+
+#define DOLLAR "$"
 
 Matrix::Matrix() {
 
@@ -27,13 +30,52 @@ size_t Matrix::N() const {
     return value[0].size();
 }
 
-Matrix& operator+=(Matrix& a, const Matrix& b) {
-    for (size_t i = 0; i < a.value.size(); ++i) {
-        for (size_t j = 0; j < a.value[i].size(); ++j) {
-            a.value[i][j] += b.value[i][j];
+Matrix::row::row(size_t index, Matrix* data) : index(index), data(data) {
+}
+
+Matrix::const_row::const_row(size_t index, const Matrix* data) : index(index), data(data) {
+}
+
+Rational &Matrix::row::operator[](size_t column) {
+    return data->value[index][column];
+}
+
+const Rational &Matrix::const_row::operator[](size_t column) {
+    return data->value[index][column];
+}
+
+Matrix::const_row Matrix::operator[](size_t index) const {
+    return const_row(index, this);
+}
+
+Matrix::row Matrix::operator[](size_t index) {
+    return row(index, this);
+}
+
+Matrix Matrix::operator-() const{
+    Matrix res = *this;
+
+    for (size_t i = 0; i < M(); i++) {
+        for (size_t j = 0; j < N(); j++) {
+            res[i][j] = -res[i][j];
         }
     }
-    return a;
+
+    return res;
+}
+
+Matrix operator-(const Matrix& a, const Matrix& b) {
+    Matrix res = a + (-b);
+    return res;
+}
+
+Matrix& Matrix::operator+=(const Matrix& b) {
+    for (size_t i = 0; i < value.size(); ++i) {
+        for (size_t j = 0; j < value[i].size(); ++j) {
+            value[i][j] += b.value[i][j];
+        }
+    }
+    return *this;
 }
 
 Matrix operator+(const Matrix& a, const Matrix& b) {
@@ -42,22 +84,22 @@ Matrix operator+(const Matrix& a, const Matrix& b) {
     return res;
 }
 
-Matrix& operator*=(Matrix& a, const Matrix& b) {
-    assert(a.N() == b.M());
+Matrix& Matrix::operator*=(const Matrix& b) {
+    assert(N() == b.M());
 
-    const size_t K = a.N();
+    const size_t K = N();
 
-    Matrix res(a.M(), b.N());
+    Matrix res(M(), b.N());
 
-    for (size_t i = 0; i < a.M(); i++) {
+    for (size_t i = 0; i < M(); i++) {
         for (size_t j = 0; j < b.N(); j++) {
             for (size_t k = 0; k < K; k++) {
-                res.value[i][j] += a.value[i][k] * b.value[k][j];
+                res.value[i][j] += value[i][k] * b.value[k][j];
             }
         }
     }
 
-    return a = res;
+    return *this = res;
 }
 
 Matrix operator*(const Matrix& a, const Matrix& b) {
@@ -66,26 +108,21 @@ Matrix operator*(const Matrix& a, const Matrix& b) {
     return res;
 }
 
-const std::vector <std::vector <Rational>>& Matrix::read() const {
-    return value;
-}
-
 std::istream& operator>>(std::istream& cin, Matrix& a) {
     for (size_t i = 0; i < a.M(); i++) {
         for (size_t j = 0; j < a.N(); j++) {
-            cin >> a.value[i][j];
+            cin >> a[i][j];
         }
     }
     return cin;
 }
 
 std::ostream& operator<<(std::ostream& cout, const Matrix& a) {
-    cout << "\\[\n"
-            "\\left(\n"
+    cout << "\\left(\n"
             "\\begin{matrix}\n";
     for (size_t i = 0; i < a.M(); i++) {
         for (size_t j = 0; j < a.N(); j++) {
-            cout << a.read()[i][j];
+            cout << a[i][j];
             if (j + 1 == a.N()) {
                 cout << "\\\\\n";
             } else {
@@ -94,8 +131,7 @@ std::ostream& operator<<(std::ostream& cout, const Matrix& a) {
         }
     }
     cout << "\\end{matrix}\n"
-            "\\right)\n"
-            "\\]";
+            "\\right)";
     cout << std::endl;
     return cout;
 }
@@ -196,7 +232,7 @@ bool operator==(const Matrix& a, const Matrix& b) {
     const size_t N = a.N();
     for (size_t i = 0; i < M; i++) {
         for (size_t j = 0; j < N; j++) {
-            if (a.read()[i][j] != b.read()[i][j]) {
+            if (a[i][j] != b[i][j]) {
                 return false;
             }
         }
@@ -206,4 +242,189 @@ bool operator==(const Matrix& a, const Matrix& b) {
 
 bool operator!=(const Matrix& a, const Matrix& b) {
     return !(a == b);
+}
+
+Matrix& Matrix::operator|=(const Matrix& b) {
+    const size_t N_1 = N();
+    const size_t N_2 = b.N();
+
+    for (size_t i = 0; i < M(); i++) {
+        value[i].resize(N_1 + N_2);
+        for (size_t j = N_1; j < N_1 + N_2; j++) {
+            value[i][j] = b.value[i][j - N_1];
+        }
+    }
+
+    return *this;
+}
+
+Matrix operator|(const Matrix& a, const Matrix& b) {
+    Matrix res = a;
+    res |= b;
+    return res;
+}
+
+Matrix unit(size_t n) {
+    Matrix res(n, n);
+    for (size_t i = 0; i < n; ++i) {
+        res[i][i] = 1;
+    }
+    return res;
+}
+
+bool Matrix::is_square() const {
+    return N() == M();
+}
+
+Matrix GaussSolution(Matrix a, bool print) {
+    Matrix changed = a;
+
+    do {
+        std::swap(changed, a);
+        if (print) {
+            std::cout << "\\[\n" << a << "\\]\n" << std::endl;
+        }
+        changed = a.GaussIteration();
+    } while (changed != a);
+
+    return a;
+}
+
+Matrix FindInverse(Matrix a, bool print) {
+    auto copy = a;
+    if (print) {
+        std::cout << "Находим обратную методом Гаусса:\n";
+    }
+
+    assert(a.is_square());
+    a |= unit(a.N());
+
+    auto got = GaussSolution(a, print);
+
+    auto res = Matrix(a.M(), a.M());
+
+    for (size_t i = 0; i < a.M(); i++) {
+        for (size_t j = 0; j < a.M(); j++) {
+            res[i][j] = got[i][j + a.M()];
+        }
+    }
+
+    if (print) {
+        std::cout << "Получаем обратную: \n" << DOLLAR << res << DOLLAR << " к " << DOLLAR << copy << DOLLAR << "\n\n";
+    }
+
+    return res;
+}
+
+Matrix Multiply(Matrix a, Matrix b) {
+    std::cout << "Перемножим две матрицы: " << DOLLAR << a << DOLLAR << " и " << DOLLAR << b << " = " << DOLLAR << "\n\n";
+    Matrix res = a * b;
+
+    std::cout << DOLLAR <<  res << DOLLAR << "\n\n";
+
+    return res;
+}
+
+Matrix Subtract(Matrix a, Matrix b) {
+    std::cout << "Вычтем две матрицы: " << DOLLAR << a << DOLLAR << " и " << DOLLAR << b << " = ";
+    Matrix res = a - b;
+
+    std::cout << res << DOLLAR << "\n\n";
+
+    return res;
+}
+
+Matrix Solve(Matrix a) {
+    std::cout << "Ответ: " << DOLLAR << a << DOLLAR << "\n\n";
+    return a;
+}
+
+Rational det(Matrix a) {
+    if (a.M() == 0) return 1;
+
+    std::vector <int> sigma(a.N());
+    for(int i = 0; i < a.N(); ++i) sigma[i] = i;
+
+    Rational ans = 0;
+    do {
+        int inversions = 0;
+
+        for (int i = 0; i < a.N(); ++i) {
+            for (int j = i + 1; j < a.N(); ++j) {
+                inversions += sigma[i] > sigma[j];
+            }
+        }
+
+        Rational mult = 1;
+        if (inversions % 2) mult = -1;
+
+        for (int i = 0; i < a.N(); ++i) {
+            mult *= a[i][sigma[i]];
+        }
+
+        ans += mult;
+    } while (next_permutation(sigma.begin(), sigma.end()));
+
+    return ans;
+}
+
+void all_subsets(int i, int n, int k, std::vector <std::vector <int>>& ans, std::vector <int>& now) {
+    if (i == n) {
+        assert(now.size() == k);
+        ans.push_back(now);
+        return;
+    }
+
+    if (now.size() < k) {
+        now.push_back(i);
+        all_subsets(i + 1, n, k, ans, now);
+        now.pop_back();
+    }
+    if (n - i - 1 >= k - now.size()) {
+        all_subsets(i + 1, n, k, ans, now);
+    }
+}
+
+std::vector <std::vector <int>> all_subsets(int n, int k) {
+    std::vector <std::vector <int>> ans;
+    std::vector <int> now;
+    all_subsets(0, n, k, ans, now);
+    return ans;
+}
+
+std::vector <Rational> characteristic(Matrix a) {
+    std::vector <Rational> ans(a.N() + 1);
+
+    for (int i = 0; i <= a.N(); ++i) {
+        int k = a.N() - i;
+
+        auto subsets = all_subsets(a.N(), k);
+
+        Rational sum = 0;
+        for (auto subset : subsets) {
+            Matrix chosen(k, k);
+            for (int x = 0; x < k; x++) {
+                for (int y = 0; y < k; ++y) {
+                    chosen[x][y] = a[subset[x]][subset[y]];
+                }
+            }
+
+            sum += det(chosen);
+        }
+
+        ans[i] = (((a.N() - i) % 2 == 0) ? sum : -sum);
+    }
+
+    return ans;
+}
+
+void PrintChar(std::vector <Rational> ch) {
+    std::cout << DOLLAR;
+    for (int i = (int)ch.size() - 1; i >= 0; --i) {
+        std::cout << " ";
+        if (i < (int)ch.size() - 1 && ch[i] >= 0) std::cout << "+ ";
+        std::cout << ch[i];
+        if (i) std::cout << "\\lambda^{" << i << "}";
+    }
+    std:: cout << DOLLAR;
 }
