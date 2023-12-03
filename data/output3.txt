@@ -1,0 +1,2 @@
+$ 1\lambda^{4} -2\lambda^{3} + 4\lambda^{2} + 7\lambda^{1} + 6$
+16 6
